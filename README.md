@@ -129,7 +129,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Styled with Tailwind CSS 4
 - UI components from Headless UI
 - Icons from Heroicons
-- AI capabilities powered by Google's Generative AI (Gemini), OpenAI, and TensorFlow.js
+- AI capabilities powered by Google's Generative AI (Gemini)
 - Offline capabilities with Next-PWA
 
 ## Support
