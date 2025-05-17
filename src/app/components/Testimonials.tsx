@@ -1,15 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Image from 'next/image';
 
 const testimonials = [
   {
-    content: "SwasthyaAI has transformed how we provide healthcare in our rural clinic. The AI diagnosis suggestions are remarkably accurate and have helped us treat patients more effectively with limited resources.",
+    content: '&quot;SwasthyaAI has transformed how we provide healthcare in our rural clinic. The AI diagnosis suggestions are remarkably accurate and have helped us treat patients more effectively with limited resources.&quot;',
     author: {
-      name: "Dr. Priya Sharma",
-      role: "Medical Officer, Rural Health Center",
-      imageUrl: "/testimonials/doctor1.jpg",
+      name: 'Dr. Priya Sharma',
+      role: 'Medical Officer, Rural Health Center',
+      imageUrl: '/testimonials/doctor1.jpg',
     },
   },
   {
@@ -85,7 +84,7 @@ export default function Testimonials() {
               >
                 <figure className="rounded-2xl bg-gray-50 dark:bg-gray-800 p-8 text-sm leading-6 h-full cursor-pointer hover:shadow-md transition-shadow">
                   <blockquote className="text-gray-900 dark:text-gray-200">
-                    <p>"{testimonial.content}"</p>
+                    <p>&quot;{testimonial.content}&quot;</p>
                   </blockquote>
                   <figcaption className="mt-6 flex items-center gap-x-4">
                     <div className="relative h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">

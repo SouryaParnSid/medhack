@@ -1,18 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { analyzeTriage } from '@/utils/gemini';
-
-interface Patient {
-  id: string;
-  name: string;
-  age: number;
-  symptoms: string;
-  priority: 'high' | 'medium' | 'low';
-  timestamp: Date;
-  analysis?: string;
-}
+import { db, Patient } from '@/lib/db';
 
 export default function Triage() {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -22,6 +13,27 @@ export default function Triage() {
     symptoms: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    loadPatients();
+  }, []);
+
+  const loadPatients = async () => {
+    const dbPatients = await db.getPatients();
+    // Sort patients by priority (high -> medium -> low)
+    const sortedPatients = dbPatients.sort((a, b) => {
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
+    setPatients(sortedPatients);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to remove this patient from the queue?')) {
+      await db.deletePatient(id);
+      await loadPatients();
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,13 +47,11 @@ export default function Triage() {
         symptoms: formData.symptoms,
       });
       
-      // Ensure priority is one of the valid values
-      const priority = (result.priority === 'high' || result.priority === 'medium' || result.priority === 'low') 
-        ? result.priority 
-        : 'medium'; // Default to medium if invalid value
+      // Extract priority from the analysis text
+      const priorityMatch = result.analysis?.match(/Priority Level: \*\*(High|Medium|Low)\*\*/i);
+      const priority = priorityMatch ? priorityMatch[1].toLowerCase() as 'high' | 'medium' | 'low' : 'medium';
       
-      const newPatient: Patient = {
-        id: Date.now().toString(),
+      const newPatient: Omit<Patient, 'id'> = {
         name: formData.name,
         age: parseInt(formData.age),
         symptoms: formData.symptoms,
@@ -50,29 +60,14 @@ export default function Triage() {
         timestamp: new Date(),
       };
 
-      setPatients(prev => [...prev, newPatient].sort((a, b) => {
-        const priorityOrder = { high: 0, medium: 1, low: 2 };
-        return priorityOrder[a.priority] - priorityOrder[b.priority];
-      }));
+      await db.addPatient(newPatient);
+      await loadPatients(); // This will load the sorted list from the database
 
       setFormData({ name: '', age: '', symptoms: '' });
     } catch (error) {
       console.error('Error analyzing triage priority:', error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const getPriorityColor = (priority: 'high' | 'medium' | 'low') => {
-    switch (priority) {
-      case 'high':
-        return 'text-red-600 bg-red-50';
-      case 'medium':
-        return 'text-yellow-600 bg-yellow-50';
-      case 'low':
-        return 'text-green-600 bg-green-50';
-      default:
-        return 'text-gray-600 bg-gray-50';
     }
   };
 
@@ -203,7 +198,7 @@ export default function Triage() {
               {patients.map((patient) => (
                 <div
                   key={patient.id}
-                  className="rounded-xl bg-white dark:bg-gray-800 p-6 shadow-md dark:shadow-gray-800/20 border border-gray-200 dark:border-gray-700 transition-all hover:shadow-lg fade-in"
+                  className="rounded-xl bg-white dark:bg-gray-800 p-6 shadow-md dark:shadow-gray-800/20 border border-gray-200 dark:border-gray-700 transition-all hover:shadow-lg fade-in relative group"
                 >
                   <div className="flex items-start justify-between flex-wrap gap-4">
                     <div className="flex-1">
@@ -236,15 +231,26 @@ export default function Triage() {
                       </div>
                     </div>
                     
-                    <div className={`rounded-full px-3 py-1.5 text-xs font-medium ${getPriorityBadgeClass(patient.priority)}`}>
-                      {patient.priority === 'high' && <ExclamationTriangleIcon className="inline-block h-4 w-4 mr-1" />}
-                      {patient.priority === 'medium' && (
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="inline-block h-4 w-4 mr-1">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    <div className="flex items-center gap-2">
+                      <div className={`rounded-full px-3 py-1.5 text-xs font-medium ${getPriorityBadgeClass(patient.priority)}`}>
+                        {patient.priority === 'high' && <ExclamationTriangleIcon className="inline-block h-4 w-4 mr-1" />}
+                        {patient.priority === 'medium' && (
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="inline-block h-4 w-4 mr-1">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                          </svg>
+                        )}
+                        {patient.priority === 'low' && <CheckCircleIcon className="inline-block h-4 w-4 mr-1" />}
+                        {patient.priority.charAt(0).toUpperCase() + patient.priority.slice(1)} Priority
+                      </div>
+                      <button
+                        onClick={() => handleDelete(patient.id!)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full text-red-600 dark:text-red-400"
+                        title="Remove patient from queue"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                         </svg>
-                      )}
-                      {patient.priority === 'low' && <CheckCircleIcon className="inline-block h-4 w-4 mr-1" />}
-                      {patient.priority.charAt(0).toUpperCase() + patient.priority.slice(1)} Priority
+                      </button>
                     </div>
                   </div>
                 </div>

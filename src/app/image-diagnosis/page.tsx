@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { CameraIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { analyzeMedicalImage } from '@/utils/gemini';
 
@@ -115,10 +116,12 @@ export default function ImageDiagnosis() {
             ) : (
               <div className="mt-8 space-y-4">
                 <div className={`relative aspect-[16/9] overflow-hidden rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} shadow-lg`}>
-                  <img
+                  <Image
                     src={selectedImage}
-                    alt="Uploaded image"
-                    className="h-full w-full object-cover"
+                    alt="Selected medical image"
+                    className="max-w-full h-auto rounded-lg shadow-lg"
+                    width={500}
+                    height={300}
                   />
                   <button
                     type="button"

@@ -48,8 +48,8 @@ const verifyResponse = (text: string): string => {
 };
 
 // Helper function for timeout
-const withTimeout = async (promise: Promise<any>, timeoutMs: number) => {
-  let timeoutId: NodeJS.Timeout;
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  let timeoutId: NodeJS.Timeout | undefined;
   
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
@@ -149,16 +149,18 @@ export async function getChatResponse(userMessage: string) {
   }
 }
 
-export async function analyzeTriage(patientData: {
+interface TriageData {
   name: string;
   age: number;
   symptoms: string;
-}) {
+}
+
+export async function analyzeTriage(data: TriageData): Promise<{ priority: 'high' | 'medium' | 'low'; analysis: string; }> {
   try {
     const prompt = `As a medical triage system, analyze these patient details:
-    Patient Name: ${patientData.name}
-    Age: ${patientData.age}
-    Symptoms: ${patientData.symptoms}
+    Patient Name: ${data.name}
+    Age: ${data.age}
+    Symptoms: ${data.symptoms}
     
     Determine the priority level (high, medium, or low) based on symptom severity and potential urgency.
     Provide a brief explanation for the triage decision.`;
@@ -180,12 +182,12 @@ export async function analyzeTriage(patientData: {
     console.error('Error analyzing triage:', error);
     if (error instanceof Error) {
       return {
-        priority: 'unknown',
+        priority: 'low',
         analysis: `Error analyzing triage: ${error.message}`
       };
     }
     return {
-      priority: 'unknown',
+      priority: 'low',
       analysis: 'An unexpected error occurred while analyzing triage priority.'
     };
   }

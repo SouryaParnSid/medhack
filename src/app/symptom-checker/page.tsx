@@ -44,7 +44,7 @@ export default function SymptomChecker() {
               <span className="gradient-text">Symptom</span> Checker
             </h1>
             <p className="mt-4 text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              Describe the symptoms you're observing, and our AI will help analyze them with high accuracy.
+              Describe the symptoms you&apos;re observing, and our AI will help analyze them with high accuracy.
             </p>
           </div>
 
@@ -180,7 +180,7 @@ export default function SymptomChecker() {
                   </svg>
                 </div>
                 <h3 className="font-medium text-gray-900 dark:text-white">AI-Powered Analysis</h3>
-                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Our advanced AI analyzes symptoms using the latest medical knowledge.</p>
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Our advanced AI analyzes symptoms using the latest medical knowledge. Don&apos;t worry if you&apos;re not sure about medical terms - our AI will help you understand.</p>
               </div>
               
               <div className="rounded-xl bg-white dark:bg-gray-800 p-5 shadow-md dark:shadow-gray-800/20 border border-gray-200 dark:border-gray-700 flex flex-col items-center text-center">

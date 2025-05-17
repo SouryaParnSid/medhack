@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 
 const features = [
   {
@@ -59,7 +58,7 @@ export default function Features() {
             Everything you need for better healthcare delivery
           </p>
           <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-400">
-            Access powerful AI tools designed to support healthcare workers in resource-limited settings, even with limited internet connectivity.
+            Access powerful AI toDon&apos;t let distance be a barrier to healthcare workers in resource-limited settings, even with limited internet connectivity.
           </p>
         </div>
         
@@ -228,13 +227,13 @@ export default function Features() {
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">AI</div>
                             <div className="flex-1 bg-green-50 dark:bg-green-900/10 p-3 rounded-lg border border-green-200 dark:border-green-900/30">
-                              <p className="text-sm text-gray-700 dark:text-gray-300">Hello! I'm your AI healthcare assistant. How can I help you today?</p>
+                              <p className="text-sm text-gray-700 dark:text-gray-300">Hello! I&apos;m your AI healthcare assistant. How can I help you today?</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">1</div>
                             <div className="flex-1 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                              <p className="text-sm text-gray-600 dark:text-gray-400">What's the recommended treatment for mild dehydration in children?</p>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">What&apos;s the recommended treatment for mild dehydration in children?</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
