@@ -23,16 +23,32 @@ SwasthyaAI is a Progressive Web App designed to support community health workers
   - Headless UI 2.2.2
   - Heroicons 2.2.0
 
+- **Backend**:
+  - Next.js API Routes for serverless functions
+  - API Route Handlers with Edge Runtime
+  - RESTful API architecture
+  - Middleware for request validation
+
 - **AI Integrations**:
   - Google Generative AI (Gemini 1.5 Flash) for text and image analysis
-
+  - TensorFlow.js for client-side ML processing
+  - LangChain for AI chain orchestration
 
 - **Data Management**:
-  - Dexie.js for client-side storage
+  - Dexie.js for IndexedDB storage
   - Axios 1.9.0 for API requests
+  - Type-safe data handling with Zod
+
+- **Security & Performance**:
+  - API rate limiting
+  - Request validation and sanitization
+  - Edge caching for API responses
+  - Environment variable protection
 
 - **PWA Support**:
   - Next-PWA 5.6.0 for offline capabilities
+  - Service Worker for background sync
+  - Cache-first strategy for assets
 
 ## Getting Started
 
@@ -77,18 +93,45 @@ SwasthyaAI is a Progressive Web App designed to support community health workers
 ├── public/            # Static assets
 ├── src/
 │   ├── app/           # Next.js App Router pages
-│   │   ├── chat/      # AI Chat feature
+│   │   ├── api/      # Backend API routes
+│   │   │   ├── chat/ # Chat API endpoints
+│   │   │   ├── diagnosis/ # Image diagnosis endpoints
+│   │   │   ├── symptoms/ # Symptom analysis endpoints
+│   │   │   └── triage/  # Triage management endpoints
+│   │   ├── chat/      # AI Chat feature frontend
 │   │   ├── components/# Shared UI components
-│   │   ├── image-diagnosis/ # Image analysis feature
-│   │   ├── symptom-checker/ # Symptom analysis feature
-│   │   ├── triage/   # Patient triage feature
+│   │   ├── image-diagnosis/ # Image analysis feature frontend
+│   │   ├── symptom-checker/ # Symptom analysis feature frontend
+│   │   ├── triage/   # Patient triage feature frontend
 │   │   ├── globals.css # Global styles
 │   │   ├── layout.tsx # Root layout
 │   │   └── page.tsx  # Home page
+│   ├── lib/         # Backend utilities
+│   │   ├── db.ts    # Database operations with Dexie
+│   │   └── types.ts # TypeScript interfaces
 │   └── utils/        # Utility functions
 │       └── gemini.ts # AI integration with Google's Gemini API
 └── package.json      # Project dependencies and scripts
 ```
+
+## Backend Implementation
+
+- **API Routes**: The application uses Next.js API routes to handle server-side operations:
+  - `/api/chat`: Handles AI chat conversations using Gemini API
+  - `/api/diagnosis`: Processes medical image analysis requests
+  - `/api/symptoms`: Manages symptom analysis and recommendations
+  - `/api/triage`: Handles patient triage operations
+
+- **Database**: Uses Dexie.js for client-side storage:
+  - Patient records management
+  - Triage queue handling
+  - Offline data persistence
+  - Automatic synchronization when online
+
+- **Security**: 
+  - API rate limiting and request validation
+  - Secure environment variable handling
+  - Data sanitization and validation
 
 ## Key Features Implementation
 
@@ -131,6 +174,39 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Icons from Heroicons
 - AI capabilities powered by Google's Generative AI (Gemini)
 - Offline capabilities with Next-PWA
+
+## Deployment
+
+The application is deployed using Vercel. To deploy your own instance:
+
+1. Fork this repository
+2. Create a Vercel account if you haven't already
+3. Import your forked repository to Vercel
+4. Set up the required environment variables in Vercel:
+   ```
+   NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key
+   ```
+5. Deploy!
+
+## Recent Updates
+
+- Added patient deletion functionality in Triage
+- Improved priority level consistency in patient analysis
+- Fixed ESLint issues and optimized deployment
+- Enhanced accessibility with proper ARIA labels
+- Improved error handling for API failures
+
+## Contributing
+
+Contributions are welcome! Here's how you can help:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+Please make sure to update tests as appropriate and adhere to the existing coding style.
 
 ## Support
 

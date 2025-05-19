@@ -1,0 +1,20 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default rule - deny all access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // Patient collection rules
+    match /patients/{patientId} {
+      // Allow read and write access to the patients collection
+      // For development purposes - in production, you would want to add authentication
+      allow read, write: if true;
+      
+      // Example of a more secure rule for production:
+      // allow read, write: if request.auth != null;
+    }
+  }
+}

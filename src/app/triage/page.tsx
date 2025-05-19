@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react';
 import { ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { analyzeTriage } from '@/utils/gemini';
-import { db, Patient } from '@/lib/db';
+import { firebaseDb, FirebasePatient } from '@/lib/firebaseDb';
+import DataMigrationBanner from '@/components/DataMigrationBanner';
 
 export default function Triage() {
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patients, setPatients] = useState<FirebasePatient[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     age: '',
@@ -19,19 +20,27 @@ export default function Triage() {
   }, []);
 
   const loadPatients = async () => {
-    const dbPatients = await db.getPatients();
-    // Sort patients by priority (high -> medium -> low)
-    const sortedPatients = dbPatients.sort((a, b) => {
-      const priorityOrder = { high: 0, medium: 1, low: 2 };
-      return priorityOrder[a.priority] - priorityOrder[b.priority];
-    });
-    setPatients(sortedPatients);
+    try {
+      const dbPatients = await firebaseDb.getPatients();
+      // Sort patients by priority (high -> medium -> low)
+      const sortedPatients = dbPatients.sort((a, b) => {
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+      });
+      setPatients(sortedPatients);
+    } catch (error) {
+      console.error('Error loading patients:', error);
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to remove this patient from the queue?')) {
-      await db.deletePatient(id);
-      await loadPatients();
+      try {
+        await firebaseDb.deletePatient(id);
+        await loadPatients();
+      } catch (error) {
+        console.error('Error deleting patient:', error);
+      }
     }
   };
 
@@ -51,16 +60,15 @@ export default function Triage() {
       const priorityMatch = result.analysis?.match(/Priority Level: \*\*(High|Medium|Low)\*\*/i);
       const priority = priorityMatch ? priorityMatch[1].toLowerCase() as 'high' | 'medium' | 'low' : 'medium';
       
-      const newPatient: Omit<Patient, 'id'> = {
+      const newPatient = {
         name: formData.name,
         age: parseInt(formData.age),
         symptoms: formData.symptoms,
         priority,
-        analysis: result.analysis,
-        timestamp: new Date(),
+        analysis: result.analysis
       };
 
-      await db.addPatient(newPatient);
+      await firebaseDb.addPatient(newPatient);
       await loadPatients(); // This will load the sorted list from the database
 
       setFormData({ name: '', age: '', symptoms: '' });
@@ -96,6 +104,8 @@ export default function Triage() {
               Add patient details for AI-powered triage assessment and prioritization based on severity.
             </p>
           </div>
+          
+          <DataMigrationBanner />
 
           <div className="mt-8 rounded-xl bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-800/20 border border-gray-200 dark:border-gray-700 overflow-hidden glass">
             <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 flex items-center">
@@ -226,7 +236,7 @@ export default function Triage() {
                         )}
                         
                         <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">
-                          Added: {patient.timestamp.toLocaleTimeString()} | {patient.timestamp.toLocaleDateString()}
+                          Added: {patient.timestamp.toDate().toLocaleTimeString()} | {patient.timestamp.toDate().toLocaleDateString()}
                         </p>
                       </div>
                     </div>
