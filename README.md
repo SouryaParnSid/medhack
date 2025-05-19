@@ -28,14 +28,17 @@ SwasthyaAI is a Progressive Web App designed to support community health workers
   - API Route Handlers with Edge Runtime
   - RESTful API architecture
   - Middleware for request validation
+  - Firebase Firestore for online database
 
 - **AI Integrations**:
   - Google Generative AI (Gemini 1.5 Flash) for text and image analysis
   - TensorFlow.js for client-side ML processing
   - LangChain for AI chain orchestration
+  - Enhanced AI output formatting with animations and structured HTML
 
 - **Data Management**:
-  - Dexie.js for IndexedDB storage
+  - Firebase Firestore for cloud database storage
+  - Dexie.js for local IndexedDB storage and offline support
   - Axios 1.9.0 for API requests
   - Type-safe data handling with Zod
 
@@ -75,17 +78,26 @@ SwasthyaAI is a Progressive Web App designed to support community health workers
 3. Create a `.env.local` file in the root directory and add your API keys:
    ```
    NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key
-   OPENAI_API_KEY=your_openai_api_key
+   NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+   NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
    ```
 
-4. Run the development server with Turbopack for faster development:
+4. Set up Firebase:
+   - Follow the instructions in `FIREBASE_SETUP.md` to create and configure your Firebase project
+   - Initialize Firestore database for the triage system
+
+5. Run the development server with Turbopack for faster development:
    ```bash
    npm run dev
    # or
    yarn dev
    ```
 
-5. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+6. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 ## Project Structure
 
@@ -190,11 +202,14 @@ The application is deployed using Vercel. To deploy your own instance:
 
 ## Recent Updates
 
-- Added patient deletion functionality in Triage
-- Improved priority level consistency in patient analysis
-- Fixed ESLint issues and optimized deployment
-- Enhanced accessibility with proper ARIA labels
-- Improved error handling for API failures
+- **Added Firebase Integration**: Implemented online database system for the triage component, allowing patient data to be stored in the cloud and accessed from multiple devices
+- **Enhanced AI Output Formatting**: Redesigned the AI-generated content with structured HTML, animations, and visual styling for better readability and user experience
+- **Added Data Migration**: Created utility for migrating local IndexedDB data to Firebase Firestore
+- **Added patient deletion functionality in Triage**
+- **Improved priority level consistency in patient analysis**
+- **Fixed ESLint issues and optimized deployment**
+- **Enhanced accessibility with proper ARIA labels**
+- **Improved error handling for API failures**
 
 ## Contributing
 
