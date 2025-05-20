@@ -3,10 +3,15 @@
 import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import Image from "next/image";
-import { detectPneumonia, type PneumoniaDetectionResult } from "@/models/pneumonia/pneumoniaModel";
 import { LoadingSpinner } from "@/app/components/LoadingSpinner";
 import { motion } from "framer-motion";
 import { CloudArrowUpIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+
+// Import the PneumoniaDetectionResult type but not the function
+import type { PneumoniaDetectionResult } from "@/models/pneumonia/pneumoniaModel";
+
+// API URL - replace with your actual deployed API URL when available
+const API_URL = process.env.NEXT_PUBLIC_PNEUMONIA_API_URL || "https://pneumonia-api-production.up.railway.app";
 
 export default function PneumoniaDetection() {
   const [image, setImage] = useState<string | null>(null);
@@ -30,37 +35,42 @@ export default function PneumoniaDetection() {
     setLoading(true);
 
     try {
-      // Create image element for processing
-      const img = document.createElement('img');
-      const objectUrl = URL.createObjectURL(file);
+      // Create a FileReader to read the file as base64
+      const reader = new FileReader();
       
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error('Failed to load image'));
-        img.src = objectUrl;
+      // Set up a promise to wait for the file to be read
+      const readFileAsDataURL = new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Failed to read file'));
       });
-
-      // Validate image dimensions
-      if (img.width < 100 || img.height < 100) {
-        throw new Error('Image dimensions too small');
-      }
-
-      // Create canvas to get ImageData
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Failed to get canvas context');
-
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
+      
+      // Start reading the file
+      reader.readAsDataURL(file);
+      
+      // Wait for the file to be read
+      const dataUrl = await readFileAsDataURL;
+      
       // Set the image preview
-      setImage(objectUrl);
-
-      // Detect pneumonia
+      setImage(URL.createObjectURL(file));
+      
+      // Call the FastAPI backend
       console.log('Starting pneumonia detection...');
-      const detectionResult = await detectPneumonia(imageData);
+      const response = await fetch(`${API_URL}/predict`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: dataUrl
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'API request failed');
+      }
+      
+      const detectionResult = await response.json();
       console.log('Detection result:', detectionResult);
       
       setResult(detectionResult);

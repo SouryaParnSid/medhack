@@ -1,0 +1,29 @@
+name: Deploy Pneumonia API to Railway
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'pneumonia-api/**'
+      - 'pneumonia_detection_model.h5'
+      - '.github/workflows/deploy-pneumonia-api.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+        
+      - name: Copy model to API directory
+        run: cp pneumonia_detection_model.h5 pneumonia-api/
+        
+      - name: Deploy to Railway
+        working-directory: ./pneumonia-api
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --detach
