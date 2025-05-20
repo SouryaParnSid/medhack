@@ -2,7 +2,13 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/ge
 
 // Initialize the Gemini API with explicit logging of API key status
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+
+// Log API key status (without revealing the key itself)
 console.log("API Key status:", API_KEY ? "API key is set" : "API key is missing");
+
+if (!API_KEY) {
+  console.error("CRITICAL ERROR: Gemini API key is missing. Please set NEXT_PUBLIC_GEMINI_API_KEY environment variable.");
+}
 
 // Initialize with direct API key for reliability
 const genAI = new GoogleGenerativeAI(API_KEY);
@@ -69,10 +75,48 @@ const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T
 
 export async function analyzeSymptoms(symptoms: string) {
   try {
+    // Check if API key is available before proceeding
+    if (!API_KEY) {
+      console.error('Cannot analyze symptoms: Gemini API key is missing');
+      return `<div class="error-message">
+        <h3>API Configuration Error</h3>
+        <p>The Gemini API key is missing or invalid. This feature requires a valid Google Gemini API key to function.</p>
+        <p><strong>For users:</strong> Please contact the administrator to set up the API key.</p>
+        <p><strong>For administrators:</strong> Please add your Gemini API key to the environment variables:</p>
+        <ol>
+          <li>Get an API key from <a href="https://ai.google.dev/" target="_blank">Google AI Studio</a></li>
+          <li>Add it as NEXT_PUBLIC_GEMINI_API_KEY in your deployment environment</li>
+        </ol>
+      </div>`;
+    }
+
     console.log('Analyzing symptoms with API Key status:', !!API_KEY);
-    const prompt = `As a medical AI assistant, analyze these symptoms and provide a preliminary assessment: ${symptoms}. 
-    Include possible conditions, severity level, and whether immediate medical attention is needed. 
-    Format the response in a clear, structured way.`;
+    const prompt = `As a highly specialized medical AI assistant, analyze these symptoms in detail and provide a comprehensive preliminary assessment: ${symptoms}.
+
+    Please provide your analysis in the following structured format:
+    
+    1. Preliminary Assessment: Provide a detailed overview of the symptoms and their potential implications.
+    
+    2. Possible Conditions: List at least 3-5 specific potential conditions that match these symptoms, ordered from most to least likely. For each condition, provide:
+       - Brief description of the condition
+       - Why it matches the reported symptoms
+       - Key distinguishing features
+    
+    3. Severity Assessment: Classify the severity as mild, moderate, or severe with clear justification.
+    
+    4. Urgency Level: Clearly state whether immediate medical attention is needed and why. Use one of these categories:
+       - Immediate medical attention required (emergency)
+       - Urgent care needed (within 24 hours)
+       - Non-urgent medical consultation recommended
+       - Self-care appropriate with monitoring
+    
+    5. Recommended Actions: Provide specific, actionable next steps including:
+       - When to seek medical care
+       - Specific tests or examinations that might be needed
+       - Self-care measures if appropriate
+       - Warning signs that would indicate worsening condition
+    
+    Be specific, detailed, and comprehensive in your analysis. Avoid vague or general statements.`;
 
     // Add additional logging
     console.log('Sending prompt to Gemini API:', { model: 'gemini-pro', promptLength: prompt.length });
@@ -88,15 +132,48 @@ export async function analyzeSymptoms(symptoms: string) {
     // More detailed error logging
     if (error instanceof Error) {
       console.error('Error details:', error.name, error.message, error.stack);
-      return `Error analyzing symptoms: ${error.message}. Please check your API key configuration or try again later.`;
+      
+      // Check for specific API key related errors
+      if (error.message.includes('API key') || error.message.includes('403') || error.message.includes('identity')) {
+        return `<div class="error-message">
+          <h3>API Authentication Error</h3>
+          <p>There was a problem authenticating with the Google Gemini API. The API key may be invalid or has reached its quota limit.</p>
+          <p><strong>For administrators:</strong> Please check your Gemini API key configuration and ensure it has the proper permissions.</p>
+        </div>`;
+      }
+      
+      return `<div class="error-message">
+        <h3>Analysis Error</h3>
+        <p>Error analyzing symptoms: ${error.message}</p>
+        <p>Please try again later or contact support if the problem persists.</p>
+      </div>`;
     }
-    return 'An unexpected error occurred while analyzing the symptoms. Please check your network connection and API key.';
+    return `<div class="error-message">
+      <h3>Unexpected Error</h3>
+      <p>An unexpected error occurred while analyzing the symptoms.</p>
+      <p>Please check your network connection and try again.</p>
+    </div>`;
   }
 }
 
 export async function analyzeMedicalImage(imageData: string) {
   try {
-    const prompt = `Analyze this medical image and provide a detailed structured assessment.
+    // Check if API key is available before proceeding
+    if (!API_KEY) {
+      console.error('Cannot analyze medical image: Gemini API key is missing');
+      return `<div class="error-message" style="padding: 16px; background-color: rgba(254, 202, 202, 0.2); border-left: 4px solid #ef4444; border-radius: 4px;">
+        <h4 style="color: #ef4444; margin-top: 0;">API Configuration Error</h4>
+        <p>The Gemini API key is missing or invalid. This feature requires a valid Google Gemini API key to function.</p>
+        <p><strong>For users:</strong> Please contact the administrator to set up the API key.</p>
+        <p><strong>For administrators:</strong> Please add your Gemini API key to the environment variables:</p>
+        <ol>
+          <li>Get an API key from <a href="https://ai.google.dev/" target="_blank" style="color: #4f46e5;">Google AI Studio</a></li>
+          <li>Add it as NEXT_PUBLIC_GEMINI_API_KEY in your deployment environment</li>
+        </ol>
+      </div>`;
+    }
+
+    const prompt = `As a specialized medical imaging AI, analyze this medical image and provide a comprehensive, detailed structured assessment with specific observations and findings.
 
     Please provide your analysis in the following structured HTML format:
 
@@ -105,57 +182,94 @@ export async function analyzeMedicalImage(imageData: string) {
         <h4>Medical Image Analysis</h4>
       </div>
       
+      <div class="image-type">
+        <h4>Image Type Assessment:</h4>
+        <p>[Identify the type of medical image (X-ray, MRI, CT scan, ultrasound, etc.) and the body region shown]</p>
+      </div>
+      
       <div class="visual-findings">
         <h4>Visual Findings:</h4>
-        <p>[Detailed description of what you observe in the image]</p>
+        <p>[Provide SPECIFIC and DETAILED observations about the image, including anatomical structures, abnormalities, densities, opacities, or other relevant features. Be precise about locations, sizes, and characteristics.]</p>
+        <ul>
+          <li>[Specific finding 1 with precise description]</li>
+          <li>[Specific finding 2 with precise description]</li>
+          <li>[Additional specific findings with precise descriptions]</li>
+        </ul>
       </div>
       
       <div class="potential-conditions">
         <h4>Potential Conditions:</h4>
         <ul>
-          <li>[Condition 1 with brief explanation]</li>
-          <li>[Condition 2 with brief explanation]</li>
-          <li>[Additional conditions if applicable]</li>
+          <li>[Specific condition 1 with detailed explanation of why it matches the imaging findings]</li>
+          <li>[Specific condition 2 with detailed explanation of why it matches the imaging findings]</li>
+          <li>[Additional specific conditions with detailed explanations]</li>
         </ul>
+      </div>
+      
+      <div class="differential-diagnosis">
+        <h4>Differential Diagnosis:</h4>
+        <p>[Discuss how to differentiate between the potential conditions, what additional tests might help, and key distinguishing features]</p>
       </div>
       
       <div class="recommendations">
         <h4>Recommendations:</h4>
         <ul>
-          <li>[Recommendation 1]</li>
-          <li>[Recommendation 2]</li>
+          <li>[Specific recommendation 1 with clear rationale]</li>
+          <li>[Specific recommendation 2 with clear rationale]</li>
+          <li>[Additional specific recommendations with clear rationales]</li>
         </ul>
       </div>
       
       <div class="disclaimer">
-        <p><strong>Note:</strong> This is an AI-assisted preliminary assessment only and should not replace professional medical diagnosis.</p>
+        <p><strong>Note:</strong> This is an AI-assisted preliminary assessment only and should not replace professional medical diagnosis. All findings should be confirmed by a qualified healthcare provider.</p>
       </div>
     </div>
     
-    Important: Maintain the HTML structure exactly as provided, only replacing the content in brackets.`;
+    Important instructions:
+    1. Be SPECIFIC and DETAILED in all your observations and assessments - avoid vague or general statements
+    2. Use precise medical terminology where appropriate
+    3. Provide concrete measurements, locations, and characteristics when possible
+    4. Maintain the HTML structure exactly as provided, only replacing the content in brackets
+    5. If you cannot determine something with confidence, acknowledge the limitation rather than making vague statements`;
 
     // Convert base64 image to proper format for Gemini
     const mimeType = imageData.split(';')[0].split(':')[1];
-    const imageBytes = atob(imageData.split(',')[1]);
-    const arrayBuffer = new ArrayBuffer(imageBytes.length);
-    const uint8Array = new Uint8Array(arrayBuffer);
+    const base64Data = imageData.split(',')[1];
+
+    // Create a file part for the image
+    const imageParts = [
+      {
+        inlineData: {
+          data: base64Data,
+          mimeType
+        }
+      },
+      prompt
+    ];
+
+    // Use the vision model for image analysis
+    const visionModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    // Add logging for debugging
+    console.log('Sending image to Gemini API for analysis');
     
-    for (let i = 0; i < imageBytes.length; i++) {
-      uint8Array[i] = imageBytes.charCodeAt(i);
-    }
-
-    const imageParts = [{
-      inlineData: {
-        data: Buffer.from(uint8Array).toString('base64'),
-        mimeType
-      }
-    }];
-
-    // Gemini 1.5 Flash handles multimodal content natively
-    const resultPromise = visionModel.generateContent([prompt, ...imageParts]);
-    const result = await withTimeout(resultPromise, 45000); // 45 second timeout for image analysis
+    // Generate content with the image
+    const resultPromise = visionModel.generateContent(imageParts);
+    const result = await withTimeout(resultPromise, 60000); // 60 second timeout for image processing
+    
+    console.log('Received response from Gemini API');
     const response = await result.response;
     let analysisText = verifyResponse(response.text());
+    
+    // Process markdown-style formatting if present in the response
+    // Convert markdown headings (# Heading) to HTML headings
+    analysisText = analysisText.replace(/#{1,6}\s(.+)/g, '<h3 style="color: #4f46e5; font-size: 1.1em; margin: 16px 0 8px 0; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px;">$1</h3>');
+    
+    // Convert markdown bold (**text**) to HTML strong
+    analysisText = analysisText.replace(/\*\*([^*]+)\*\*/g, '<strong style="color: #f3f4f6;">$1</strong>');
+    
+    // Convert markdown italic (*text*) to HTML em
+    analysisText = analysisText.replace(/\*([^*]+)\*/g, '<em style="color: #d1d5db;">$1</em>');
     
     // Add custom styling to the HTML content
     analysisText = analysisText.replace('<div class="image-analysis">', 
@@ -205,6 +319,17 @@ export async function analyzeMedicalImage(imageData: string) {
   } catch (error) {
     console.error('Error analyzing image:', error);
     if (error instanceof Error) {
+      // Check for API key related errors
+      if (error.message.includes('API key') || error.message.includes('403') || error.message.includes('unregistered callers') || error.message.includes('identity')) {
+        return `<div class="error-message" style="color: #ef4444; padding: 12px; border: 1px solid #ef4444; border-radius: 8px; background-color: rgba(239, 68, 68, 0.1);">
+          <h4 style="margin-top: 0;">API Configuration Error</h4>
+          <p>There was a problem authenticating with the Google Gemini API.</p>
+          <p><strong>For users:</strong> Please contact the administrator to verify the API key configuration.</p>
+          <p><strong>For administrators:</strong> Please check that your Gemini API key is valid and has the proper permissions.</p>
+          <p>Error details: ${error.message}</p>
+        </div>`;
+      }
+      
       return `<div class="error-message" style="color: #ef4444; padding: 12px; border: 1px solid #ef4444; border-radius: 8px; background-color: rgba(239, 68, 68, 0.1);">
         <h4 style="margin-top: 0;">Error Analyzing Image</h4>
         <p>${error.message}</p>
@@ -221,6 +346,17 @@ export async function analyzeMedicalImage(imageData: string) {
 
 export async function getChatResponse(userMessage: string) {
   try {
+    // Check if API key is available before proceeding
+    if (!API_KEY) {
+      console.error('Cannot get chat response: Gemini API key is missing');
+      return `<div class="error-message">
+        <h3>API Configuration Error</h3>
+        <p>The Gemini API key is missing or invalid. This feature requires a valid Google Gemini API key to function.</p>
+        <p><strong>For users:</strong> Please contact the administrator to set up the API key.</p>
+        <p><strong>For administrators:</strong> Please add your Gemini API key to the environment variables.</p>
+      </div>`;
+    }
+
     const prompt = `As a medical AI assistant, provide helpful information about: ${userMessage}. 
     Remember to be clear, accurate, and always recommend consulting healthcare professionals for proper diagnosis and treatment.`;
 
@@ -231,9 +367,27 @@ export async function getChatResponse(userMessage: string) {
   } catch (error) {
     console.error('Error getting chat response:', error);
     if (error instanceof Error) {
-      return `Error getting response: ${error.message}`;
+      // Check for API key related errors
+      if (error.message.includes('API key') || error.message.includes('403') || error.message.includes('unregistered callers') || error.message.includes('identity')) {
+        return `<div class="error-message">
+          <h3>API Authentication Error</h3>
+          <p>There was a problem authenticating with the Google Gemini API.</p>
+          <p><strong>For administrators:</strong> Please check that your Gemini API key is valid and has the proper permissions.</p>
+          <p>Error details: ${error.message}</p>
+        </div>`;
+      }
+      
+      return `<div class="error-message">
+        <h3>Chat Error</h3>
+        <p>Error getting response: ${error.message}</p>
+        <p>Please try again later or contact support if the problem persists.</p>
+      </div>`;
     }
-    return 'An unexpected error occurred while getting a response.';
+    return `<div class="error-message">
+      <h3>Unexpected Error</h3>
+      <p>An unexpected error occurred while getting a response.</p>
+      <p>Please try again later.</p>
+    </div>`;
   }
 }
 

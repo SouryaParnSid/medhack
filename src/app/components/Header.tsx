@@ -10,6 +10,9 @@ const navigation = [
   { name: 'Symptom Checker', href: '/symptom-checker' },
   { name: 'Triage Assistant', href: '/triage' },
   { name: 'Image Diagnosis', href: '/image-diagnosis' },
+  { name: 'Heart Attack Risk', href: '/heart-attack-prediction' },
+  { name: 'Skin Cancer', href: '/skin-cancer-detection' },
+  { name: 'Pneumonia Detection', href: '/image-diagnosis/pneumonia' },
   { name: 'AI Chat', href: '/chat' },
 ];
 

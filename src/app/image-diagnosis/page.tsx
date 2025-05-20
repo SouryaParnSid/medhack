@@ -1,169 +1,101 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import Image from 'next/image';
-import { CameraIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
-import { analyzeMedicalImage } from '@/utils/gemini';
+import Link from 'next/link';
+import { 
+  CameraIcon, 
+  HeartIcon,
+  SunIcon
+} from '@heroicons/react/24/outline';
 
-export default function ImageDiagnosis() {
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [analysis, setAnalysis] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+// Define the diagnosis options
+const diagnosisOptions = [
+  {
+    id: 'pneumonia',
+    name: 'Pneumonia Detection',
+    description: 'Detect pneumonia from chest X-ray images using AI.',
+    icon: CameraIcon,
+    href: '/pneumonia-detection',
+    color: 'bg-blue-500',
+  },
+  {
+    id: 'skin-cancer',
+    name: 'Skin Cancer Detection',
+    description: 'Analyze skin lesions to detect potential skin cancer.',
+    icon: SunIcon,
+    href: '/skin-cancer-detection',
+    color: 'bg-yellow-500',
+  },
+  {
+    id: 'heart',
+    name: 'Heart Attack Risk',
+    description: 'Analyze cardiac risk factors for heart attack prediction.',
+    icon: HeartIcon,
+    href: '/heart-attack-prediction',
+    color: 'bg-red-500',
+  },
+  {
+    id: 'general',
+    name: 'General Medical Image Analysis',
+    description: 'Analyze any medical image using our AI assistant.',
+    icon: CameraIcon,
+    href: '/image-diagnosis/general',
+    color: 'bg-purple-500',
+  },
+];
 
-  // Check for dark mode preference on component mount
-  useEffect(() => {
-    // Check if user prefers dark mode
-    if (typeof window !== 'undefined') {
-      const darkModePreference = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setIsDarkMode(darkModePreference);
-      
-      // Add listener for changes in color scheme preference
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleChange = (e: MediaQueryListEvent) => setIsDarkMode(e.matches);
-      mediaQuery.addEventListener('change', handleChange);
-      
-      return () => mediaQuery.removeEventListener('change', handleChange);
-    }
-  }, []);
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setSelectedImage(result);
-        analyzeImage(result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const analyzeImage = async (imageData: string) => {
-    setIsLoading(true);
-    try {
-      const result = await analyzeMedicalImage(imageData);
-      setAnalysis(result);
-    } catch (error) {
-      console.error('Error analyzing image:', error);
-      setAnalysis('Sorry, there was an error analyzing the image. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setSelectedImage(result);
-        analyzeImage(result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
+export default function ImageDiagnosisHub() {
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-50'} py-24`}>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl">
-          <h1 className={`text-3xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'} sm:text-4xl`}>
-            Image Diagnosis
-          </h1>
-          <p className={`mt-4 text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
-            Upload an image for AI-powered analysis and preliminary diagnosis.
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold mb-4 text-gray-900 dark:text-white">Medical Image Diagnosis</h1>
+          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+            Upload medical images for AI-powered analysis and get instant diagnostic assistance.
           </p>
+        </div>
 
-          <div className="mt-8">
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept="image/*"
-              onChange={handleImageUpload}
-            />
-
-            {!selectedImage ? (
-              <div
-                className={`mt-2 flex justify-center rounded-lg border border-dashed ${isDarkMode ? 'border-gray-700' : 'border-gray-900/25'} px-6 py-10 ${isDarkMode ? 'bg-gray-800/50' : ''}`}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-              >
-                <div className="text-center">
-                  <CameraIcon className={`mx-auto h-12 w-12 ${isDarkMode ? 'text-gray-500' : 'text-gray-300'}`} aria-hidden="true" />
-                  <div className={`mt-4 flex text-sm leading-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    <button
-                      type="button"
-                      className={`relative rounded-md ${isDarkMode ? 'bg-gray-700 text-indigo-400 hover:text-indigo-300 focus-within:ring-indigo-500' : 'bg-white text-indigo-600 hover:text-indigo-500 focus-within:ring-indigo-600'} font-semibold focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2`}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <span>Upload a file</span>
-                    </button>
-                    <p className="pl-1">or drag and drop</p>
-                  </div>
-                  <p className={`text-xs leading-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>PNG, JPG, GIF up to 10MB</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {diagnosisOptions.map((option) => (
+            <Link 
+              href={option.href} 
+              key={option.id}
+              className="group bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1"
+            >
+              <div className={`${option.color} h-3 w-full`}></div>
+              <div className="p-6">
+                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 mb-4 mx-auto group-hover:bg-indigo-50 dark:group-hover:bg-gray-600 transition-colors">
+                  <option.icon className="w-8 h-8 text-gray-600 dark:text-gray-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
                 </div>
+                <h3 className="text-xl font-semibold text-center mb-2 text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                  {option.name}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 text-center">
+                  {option.description}
+                </p>
               </div>
-            ) : (
-              <div className="mt-8 space-y-4">
-                <div className={`relative aspect-[16/9] overflow-hidden rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} shadow-lg`}>
-                  <Image
-                    src={selectedImage}
-                    alt="Selected medical image"
-                    className="max-w-full h-auto rounded-lg shadow-lg"
-                    width={500}
-                    height={300}
-                  />
-                  <button
-                    type="button"
-                    className={`absolute top-2 right-2 rounded-full ${isDarkMode ? 'bg-gray-800/80 text-gray-300 hover:bg-gray-700' : 'bg-white/80 text-gray-600 hover:bg-white'} p-2 transition-colors duration-200`}
-                    onClick={() => {
-                      setSelectedImage(null);
-                      setAnalysis(null);
-                    }}
-                  >
-                    <ArrowUpTrayIcon className="h-5 w-5" />
-                  </button>
-                </div>
+            </Link>
+          ))}
+        </div>
 
-                {isLoading ? (
-                  <div className="flex justify-center">
-                    <div className={`inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid ${isDarkMode ? 'border-indigo-400' : 'border-indigo-600'} border-r-transparent`}></div>
-                  </div>
-                ) : analysis ? (
-                  <div className={`rounded-lg ${isDarkMode ? 'bg-gray-800 shadow-lg' : 'bg-white shadow'} p-6 transition-colors duration-200`}>
-                    <h2 className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Analysis Result</h2>
-                    <div className={`mt-2 prose prose-sm ${isDarkMode ? 'text-gray-300 prose-invert' : 'text-gray-600'}`} dangerouslySetInnerHTML={{ __html: analysis.replace(/\n/g, '<br />') }} />
-                    <div className="mt-4 flex flex-wrap gap-4">
-                      <button
-                        type="button"
-                        className={`rounded-md ${isDarkMode ? 'bg-indigo-500 hover:bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-500'} px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 transition-colors duration-200`}
-                      >
-                        Save to Records
-                      </button>
-                      <button
-                        type="button"
-                        className={`rounded-md ${isDarkMode ? 'bg-gray-700 text-gray-200 ring-gray-600 hover:bg-gray-600' : 'bg-white text-gray-900 ring-gray-300 hover:bg-gray-50'} px-3.5 py-2.5 text-sm font-semibold shadow-sm ring-1 ring-inset transition-colors duration-200`}
-                      >
-                        Share with Doctor
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
+        <div className="mt-12 bg-indigo-50 dark:bg-gray-800 rounded-xl p-8">
+          <div className="flex flex-col md:flex-row items-center">
+            <div className="md:w-2/3 mb-6 md:mb-0 md:pr-8">
+              <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">How It Works</h2>
+              <ol className="list-decimal list-inside space-y-3 text-gray-700 dark:text-gray-300">
+                <li>Select the type of medical image analysis you need</li>
+                <li>Upload your medical image (X-ray, MRI, CT scan, etc.)</li>
+                <li>Our AI analyzes the image and provides diagnostic insights</li>
+                <li>Review the analysis and recommendations</li>
+              </ol>
+            </div>
+            <div className="md:w-1/3 flex justify-center">
+              <div className="w-32 h-32 rounded-full bg-indigo-100 dark:bg-gray-700 flex items-center justify-center">
+                <CameraIcon className="w-16 h-16 text-indigo-600 dark:text-indigo-400" />
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
-} 
+}

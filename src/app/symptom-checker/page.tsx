@@ -139,7 +139,12 @@ export default function SymptomChecker() {
                 <h2 className="text-lg font-medium text-gray-900 dark:text-white">Analysis Result</h2>
               </div>
               
-              <div className="mt-2 prose prose-sm text-gray-600 dark:text-gray-300 max-w-none" dangerouslySetInnerHTML={{ __html: result.replace(/\n/g, '<br />') }} />
+              <div className="mt-2 prose prose-sm text-gray-600 dark:text-gray-300 max-w-none" dangerouslySetInnerHTML={{ __html: result
+                .replace(/\n/g, '<br />')
+                .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                .replace(/#{1,6}\s(.+)/g, '<h3 class="text-lg font-semibold text-gray-900 dark:text-white mt-4 mb-2">$1</h3>')
+              }} />
               
               <div className="mt-6 flex flex-wrap gap-4">
                 <button

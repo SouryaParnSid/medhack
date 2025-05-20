@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import FirebaseInitializer from "@/components/FirebaseInitializer";
+import Navigation from "./components/Navigation";
+import Footer from "./components/Footer";
 
 // Initialize the Inter font
 const inter = Inter({
@@ -34,10 +36,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
-      <body className="min-h-screen antialiased">
+      <body className="min-h-screen antialiased bg-[#0f172a] text-white">
         <div className="relative flex min-h-screen flex-col">
           <FirebaseInitializer />
-          {children}
+          <Navigation />
+          <main className="flex-grow">
+            {children}
+          </main>
+          <Footer />
           <div id="modal-root" />
         </div>
       </body>

@@ -25,25 +25,25 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
   
   return (
-    <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
+    <footer className="bg-gray-900 border-t border-gray-800">
       <div className="mx-auto max-w-7xl overflow-hidden px-6 py-12 sm:py-16 lg:px-8">
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           <div>
             <Link href="/" className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-lg">S</div>
-              <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">SwasthyaAI</span>
+              <span className="text-xl font-bold text-indigo-400">SwasthyaAI</span>
             </Link>
-            <p className="mt-4 text-sm text-gray-600 dark:text-gray-400 max-w-xs">
+            <p className="mt-4 text-sm text-gray-400 max-w-xs">
               Empowering healthcare workers with AI-powered tools for better diagnosis, triage, and treatment guidance.
             </p>
           </div>
           
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Navigation</h3>
+            <h3 className="text-sm font-semibold text-white">Navigation</h3>
             <ul className="mt-4 space-y-3">
               {navigation.main.map((item) => (
                 <li key={item.name}>
-                  <Link href={item.href} className="text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                  <Link href={item.href} className="text-sm text-gray-400 hover:text-indigo-400 transition-colors">
                     {item.name}
                   </Link>
                 </li>
@@ -52,11 +52,11 @@ export default function Footer() {
           </div>
           
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Features</h3>
+            <h3 className="text-sm font-semibold text-white">Features</h3>
             <ul className="mt-4 space-y-3">
               {navigation.features.map((item) => (
                 <li key={item.name}>
-                  <Link href={item.href} className="text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                  <Link href={item.href} className="text-sm text-gray-400 hover:text-indigo-400 transition-colors">
                     {item.name}
                   </Link>
                 </li>
@@ -65,11 +65,11 @@ export default function Footer() {
           </div>
           
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Legal</h3>
+            <h3 className="text-sm font-semibold text-white">Legal</h3>
             <ul className="mt-4 space-y-3">
               {navigation.legal.map((item) => (
                 <li key={item.name}>
-                  <Link href={item.href} className="text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                  <Link href={item.href} className="text-sm text-gray-400 hover:text-indigo-400 transition-colors">
                     {item.name}
                   </Link>
                 </li>
@@ -77,7 +77,7 @@ export default function Footer() {
             </ul>
             
             <div className="mt-8">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Subscribe to our newsletter</h3>
+              <h3 className="text-sm font-semibold text-white">Subscribe to our newsletter</h3>
               <div className="mt-4 flex max-w-md gap-x-4">
                 <label htmlFor="email-address" className="sr-only">
                   Email address
@@ -88,7 +88,7 @@ export default function Footer() {
                   type="email"
                   autoComplete="email"
                   required
-                  className="min-w-0 flex-auto rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3.5 py-2 text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 sm:text-sm sm:leading-6"
+                  className="min-w-0 flex-auto rounded-md border border-gray-700 bg-gray-800 px-3.5 py-2 text-white shadow-sm ring-1 ring-inset ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
                   placeholder="Enter your email"
                 />
                 <button
@@ -102,12 +102,10 @@ export default function Footer() {
           </div>
         </div>
         
-        <div className="mt-10 flex flex-col items-center justify-between border-t border-gray-200 dark:border-gray-800 pt-8 sm:flex-row">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            &copy; {currentYear} SwasthyaAI. All rights reserved.
-          </p>
+        <div className="mt-10 flex flex-col items-center justify-between border-t border-gray-800 pt-8 sm:flex-row">
+          <p className="mt-10 text-center text-xs text-gray-400">&copy; {currentYear} SwasthyaAI. All rights reserved.</p>
           <div className="mt-4 flex space-x-6 sm:mt-0">
-            <a href="#" className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+            <a href="#" className="text-gray-400 hover:text-gray-500">
               <span className="sr-only">Twitter</span>
               <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
