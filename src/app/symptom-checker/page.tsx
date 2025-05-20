@@ -1,14 +1,17 @@
 'use client';
 
-import { useState } from 'react';
-import { MicrophoneIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
-import { analyzeSymptoms } from '@/utils/gemini';
+import { useState, useRef, useEffect } from 'react';
+import { MicrophoneIcon, PaperAirplaneIcon, StopIcon } from '@heroicons/react/24/outline';
+import { analyzeSymptoms, convertSpeechToText } from '@/utils/gemini';
 
 export default function SymptomChecker() {
   const [symptoms, setSymptoms] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [recordingStatus, setRecordingStatus] = useState<'idle' | 'recording' | 'processing'>('idle');
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,24 +29,100 @@ export default function SymptomChecker() {
     }
   };
 
+  useEffect(() => {
+    // Cleanup function to stop recording if component unmounts while recording
+    return () => {
+      if (mediaRecorderRef.current && isRecording) {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, [isRecording]);
+
+  const startRecording = async () => {
+    try {
+      audioChunksRef.current = [];
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = async () => {
+        setRecordingStatus('processing');
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mp3' });
+        const reader = new FileReader();
+        
+        reader.onloadend = async () => {
+          try {
+            const base64Audio = reader.result as string;
+            const transcription = await convertSpeechToText(base64Audio);
+            const newSymptoms = symptoms ? `${symptoms}\n${transcription}` : transcription;
+            setSymptoms(newSymptoms);
+            
+            // Automatically analyze the transcribed symptoms
+            setIsLoading(true);
+            try {
+              const analysis = await analyzeSymptoms(newSymptoms);
+              setResult(analysis);
+            } catch (analysisError) {
+              console.error('Error analyzing transcribed symptoms:', analysisError);
+              setResult('Sorry, there was an error analyzing the symptoms. Please try again.');
+            } finally {
+              setIsLoading(false);
+            }
+            
+            setRecordingStatus('idle');
+            setIsRecording(false);
+          } catch (error) {
+            console.error('Error processing speech:', error);
+            setRecordingStatus('idle');
+            setIsRecording(false);
+            alert('Failed to convert speech to text. Please try again.');
+          }
+        };
+        
+        reader.readAsDataURL(audioBlob);
+        
+        // Stop all tracks in the stream to release the microphone
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingStatus('recording');
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      alert('Could not access microphone. Please check your browser permissions.');
+    }
+  };
+  
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
   const toggleRecording = () => {
     if (!isRecording) {
-      // Here we'll implement voice recording functionality
-      setIsRecording(true);
+      startRecording();
     } else {
-      setIsRecording(false);
+      stopRecording();
     }
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 pt-16">
+    <div className="min-h-screen bg-white dark:bg-gray-900 pt-12 md:pt-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl py-16 sm:py-24">
-          <div className="text-center mb-12">
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl slide-up">
+        <div className="mx-auto max-w-3xl py-8 md:py-16 lg:py-24">
+          <div className="text-center mb-8 md:mb-12">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 dark:text-white md:text-4xl slide-up">
               <span className="gradient-text">Symptom</span> Checker
             </h1>
-            <p className="mt-4 text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+            <p className="mt-3 md:mt-4 text-base md:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
               Describe the symptoms you&apos;re observing, and our AI will help analyze them with high accuracy.
             </p>
           </div>
@@ -63,61 +142,101 @@ export default function SymptomChecker() {
                 Enter your symptoms below in as much detail as possible. Include when they started, their severity, and any other relevant information.
               </p>
               
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="rounded-lg shadow-sm">
-                  <div className="relative">
-                    <textarea
-                      rows={4}
-                      name="symptoms"
-                      id="symptoms"
-                      className="block w-full rounded-lg border-0 py-4 px-4 text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 transition-colors sm:text-sm sm:leading-6"
-                      placeholder="Describe the symptoms here..."
-                      value={symptoms}
-                      onChange={(e) => setSymptoms(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      onClick={toggleRecording}
-                      className={`absolute bottom-2 right-14 p-2 rounded-full transition-colors ${
-                        isRecording ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 animate-pulse' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-                      } hover:bg-gray-200 dark:hover:bg-gray-700`}
-                    >
-                      <MicrophoneIcon className="h-5 w-5" />
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isLoading || !symptoms.trim()}
-                      className="absolute bottom-2 right-2 p-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:scale-105"
-                    >
-                      <PaperAirplaneIcon className="h-5 w-5" />
-                    </button>
-                  </div>
+              <div className="mt-6 md:mt-8 rounded-xl bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-800/20 border border-gray-200 dark:border-gray-700 overflow-hidden glass">
+                <div className="p-4 md:p-6">
+                  <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
+                    <div>
+                      <label htmlFor="symptoms" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Describe the symptoms in detail
+                      </label>
+                      <div className="mt-1">
+                        <textarea
+                          id="symptoms"
+                          name="symptoms"
+                          rows={5}
+                          className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white text-sm p-3"
+                          placeholder="Example: I've been experiencing a persistent dry cough for the past 3 days, along with a mild fever..."
+                          value={symptoms}
+                          onChange={(e) => setSymptoms(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={toggleRecording}
+                        disabled={recordingStatus === 'processing'}
+                        className={`w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm ${isRecording ? 'text-white bg-red-600 hover:bg-red-700' : 'text-white bg-gray-600 hover:bg-gray-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {isRecording ? (
+                          <>
+                            <StopIcon className="-ml-1 mr-2 h-5 w-5" />
+                            Stop Recording
+                          </>
+                        ) : recordingStatus === 'processing' ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Processing Audio...
+                          </>
+                        ) : (
+                          <>
+                            <MicrophoneIcon className="-ml-1 mr-2 h-5 w-5" />
+                            Voice Input
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={!symptoms.trim() || isLoading}
+                        className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isLoading ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Analyzing...
+                          </>
+                        ) : (
+                          <>
+                            <PaperAirplaneIcon className="-ml-1 mr-2 h-5 w-5" />
+                            Analyze Symptoms
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
                 </div>
-                
-                <div className="flex flex-wrap gap-2">
-                  <button 
-                    type="button"
-                    onClick={() => setSymptoms(prev => prev + (prev ? '\n' : '') + "Fever, headache, and sore throat for the past 2 days")}
-                    className="px-4 py-2 rounded-full text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"
-                  >
-                    Fever & sore throat
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setSymptoms(prev => prev + (prev ? '\n' : '') + "Stomach pain, nausea, and vomiting since yesterday")}
-                    className="px-4 py-2 rounded-full text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"
-                  >
-                    Stomach issues
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setSymptoms(prev => prev + (prev ? '\n' : '') + "Rash on arms and chest, itchy and red")}
-                    className="px-4 py-2 rounded-full text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"
-                  >
-                    Skin rash
-                  </button>
-                </div>
-              </form>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mt-4">
+                <button 
+                  type="button"
+                  onClick={() => setSymptoms(prev => prev + (prev ? '\n' : '') + "Fever, headache, and sore throat for the past 2 days")}
+                  className="px-4 py-2 rounded-full text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"
+                >
+                  Fever & sore throat
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setSymptoms(prev => prev + (prev ? '\n' : '') + "Stomach pain, nausea, and vomiting since yesterday")}
+                  className="px-4 py-2 rounded-full text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"
+                >
+                  Stomach issues
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setSymptoms(prev => prev + (prev ? '\n' : '') + "Rash on arms and chest, itchy and red")}
+                  className="px-4 py-2 rounded-full text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"
+                >
+                  Skin rash
+                </button>
+              </div>
             </div>
           </div>
 

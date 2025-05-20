@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { CameraIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
-import { detectBrainStroke } from '@/models/brain-stroke/brainStrokeModel';
+import { detectBrainStroke } from "@/models/brain-stroke/brainStrokeModel";
 
 export default function BrainStrokeDetection() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -114,10 +114,10 @@ export default function BrainStrokeDetection() {
               </div>
               <div>
                 <h3 className={`font-medium ${analysis.hasStroke ? 'text-red-800 dark:text-red-300' : 'text-green-800 dark:text-green-300'}`}>
-                  {analysis.hasStroke ? 'Potential Stroke Detected' : 'No Stroke Detected'}
+                  Analysis Result: {analysis.hasStroke ? "Stroke Detected" : "No Stroke Detected"}
                 </h3>
                 <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Confidence: {confidencePercent}%
+                  Confidence: {Math.round(analysis.confidence * 100)}%
                 </p>
               </div>
             </div>

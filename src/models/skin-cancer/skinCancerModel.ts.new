@@ -1,0 +1,581 @@
+import * as tf from '@tensorflow/tfjs';
+
+// Define the model interface
+interface SkinCancerModel {
+  model: tf.LayersModel | null;
+  isLoaded: boolean;
+  isLoading: boolean;
+  loadError: string | null;
+  classNames: string[];
+}
+
+// Define the class names for skin cancer types
+const SKIN_CANCER_CLASSES = [
+  "Actinic Keratoses (Solar Keratoses) or Intraepithelial Carcinoma (Bowen's disease)",
+  "Basal Cell Carcinoma",
+  "Benign Keratosis",
+  "Dermatofibroma",
+  "Melanoma",
+  "Melanocytic Nevi",
+  "Vascular Lesions"
+];
+
+// Create a singleton instance to manage the model state
+const modelState: SkinCancerModel = {
+  model: null,
+  isLoaded: false,
+  isLoading: false,
+  loadError: null,
+  classNames: SKIN_CANCER_CLASSES
+};
+
+/**
+ * Loads the skin cancer detection model
+ */
+export async function loadModel(): Promise<boolean> {
+  // If the model is already loaded, return true
+  if (modelState.isLoaded && modelState.model) {
+    return true;
+  }
+
+  // If the model is currently loading, wait for it to finish
+  if (modelState.isLoading) {
+    return new Promise((resolve) => {
+      const checkLoaded = setInterval(() => {
+        if (!modelState.isLoading) {
+          clearInterval(checkLoaded);
+          resolve(modelState.isLoaded);
+        }
+      }, 100);
+    });
+  }
+
+  try {
+    modelState.isLoading = true;
+    modelState.loadError = null;
+
+    // Try to load the model from the public directory
+    try {
+      modelState.model = await tf.loadLayersModel('/models/skin-cancer/model.json');
+      modelState.isLoaded = true;
+      console.log('Skin cancer detection model loaded successfully');
+      return true;
+    } catch (loadError) {
+      // Handle 404 error specifically
+      if (loadError instanceof Error && loadError.message.includes('404')) {
+        console.warn('Model files not found at /models/skin-cancer/model.json');
+        console.warn('This is expected if you haven\'t converted the model yet.');
+        console.warn('The app will use simulated responses until the model is converted.');
+        
+        modelState.loadError = 'Model files not found. Please run the convert_skin_cancer_model.py script.';
+      } else {
+        console.error('Error loading skin cancer detection model:', loadError);
+        modelState.loadError = loadError instanceof Error ? loadError.message : 'Unknown error loading model';
+      }
+      return false;
+    }
+  } catch (error) {
+    console.error('Unexpected error in loadModel function:', error);
+    modelState.loadError = error instanceof Error ? error.message : 'Unknown error in model loading process';
+    return false;
+  } finally {
+    modelState.isLoading = false;
+  }
+}
+
+/**
+ * Preprocesses an image for the skin cancer detection model
+ * @param imageData - The base64 encoded image data
+ */
+async function preprocessImage(imageData: string): Promise<tf.Tensor> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        // Create a canvas to resize the image
+        const canvas = document.createElement('canvas');
+        canvas.width = 224;
+        canvas.height = 224;
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+        
+        // Draw the image on the canvas (resizing it to 224x224)
+        ctx.drawImage(img, 0, 0, 224, 224);
+        
+        // Get the image data from the canvas
+        const imageData = ctx.getImageData(0, 0, 224, 224);
+        
+        // Convert the image data to a tensor
+        let tensor = tf.browser.fromPixels(imageData, 3);
+        
+        // Normalize the tensor values to [0, 1]
+        tensor = tensor.toFloat().div(tf.scalar(255));
+        
+        // Add batch dimension [1, 224, 224, 3]
+        tensor = tensor.expandDims(0);
+        
+        resolve(tensor);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    img.onerror = (error) => {
+      reject(error);
+    };
+    
+    // Set the source of the image to the base64 encoded data
+    img.src = imageData;
+  });
+}
+
+/**
+ * Predicts the skin cancer type from an image
+ * @param imageData - The base64 encoded image data
+ */
+export async function detectSkinCancer(imageData: string): Promise<{
+  className: string;
+  probability: number;
+  allProbabilities: { className: string; probability: number }[];
+  error?: string;
+}> {
+  try {
+    // Initialize TensorFlow.js
+    await tf.ready();
+    console.log('TensorFlow.js initialized');
+    
+    // Make sure the model is loaded
+    const isLoaded = await loadModel();
+    if (!isLoaded || !modelState.model) {
+      console.error('Skin cancer model not loaded');
+      return {
+        className: '',
+        probability: 0,
+        allProbabilities: [],
+        error: 'Model not available. Please ensure the model is properly converted and available.'
+      };
+    }
+    
+    // Process the image to extract features for model prediction
+    const tensor = await preprocessImage(imageData);
+    
+    // Run inference with the model
+    const predictions = await modelState.model.predict(tensor) as tf.Tensor;
+    
+    // Get the prediction values
+    const predictionValues = await predictions.dataSync();
+    
+    // Clean up tensors to prevent memory leaks
+    tensor.dispose();
+    predictions.dispose();
+    
+    // Find the class with the highest probability
+    let maxProbIndex = 0;
+    let maxProb = predictionValues[0];
+    
+    for (let i = 1; i < predictionValues.length; i++) {
+      if (predictionValues[i] > maxProb) {
+        maxProb = predictionValues[i];
+        maxProbIndex = i;
+      }
+    }
+    
+    // Get the class name for the highest probability
+    const predictedClass = modelState.classNames[maxProbIndex];
+    
+    // Generate probabilities for all classes
+    const allProbs = modelState.classNames.map((className, index) => {
+      return { 
+        className, 
+        probability: predictionValues[index]
+      };
+    });
+    
+    // Normalize probabilities to ensure they sum to 1
+    let sumProbs = 0;
+    for (let i = 0; i < allProbs.length; i++) {
+      sumProbs += allProbs[i].probability;
+    }
+    
+    const normalizedProbs = allProbs.map(item => ({
+      className: item.className,
+      probability: item.probability / sumProbs
+    }));
+    
+    // Return the prediction result
+    return {
+      className: predictedClass,
+      probability: maxProb,
+      allProbabilities: normalizedProbs
+    };
+  } catch (error) {
+    console.error('Error during skin cancer detection:', error);
+    return {
+      className: '',
+      probability: 0,
+      allProbabilities: [],
+      error: error instanceof Error ? error.message : 'Unknown error during detection'
+    };
+  }
+}
+
+/**
+ * Analyzes image features to determine characteristics relevant to skin cancer detection
+ */
+function analyzeImageFeatures(imageData: tf.Tensor): {
+  redness: number;
+  darkSpots: number;
+  irregularBorder: number;
+  texture: number;
+  lightPatches: number;
+} {
+  // In a real implementation, this would use computer vision techniques
+  // to analyze the image for features relevant to skin cancer detection
+  
+  // For now, we'll generate semi-random values based on the image data
+  // to provide somewhat consistent results for the same image
+  
+  // Get a hash of the tensor data to use as a seed
+  const tensorData = imageData.dataSync();
+  let dataSum = 0;
+  // Manually sum the values to avoid TypeScript issues
+  for (let i = 0; i < tensorData.length; i++) {
+    dataSum += tensorData[i];
+  }
+  const seed = dataSum % 1000 / 1000;
+  
+  // Generate feature values with some randomness but biased by the seed
+  // This ensures the same image will get somewhat similar results each time
+  return {
+    redness: 0.3 + (seed * 0.4) + (Math.random() * 0.3),
+    darkSpots: 0.2 + (seed * 0.5) + (Math.random() * 0.3),
+    irregularBorder: 0.25 + (seed * 0.45) + (Math.random() * 0.3),
+    texture: 0.3 + (seed * 0.3) + (Math.random() * 0.4),
+    lightPatches: 0.2 + (seed * 0.4) + (Math.random() * 0.4)
+  };
+}
+
+/**
+ * Simple hash function for consistent results
+ */
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0; // Convert to 32bit integer
+  }
+  return Math.abs(hash);
+}
+
+/**
+ * Gets information about a specific skin cancer class
+ * @param className - The class name to get information for
+ */
+export function getSkinCancerClassInfo(className: string): {
+  name: string;
+  description: string;
+  riskLevel: 'Low' | 'Medium' | 'High';
+  recommendations: string[];
+} {
+  // Define risk levels for different skin cancer types
+  const riskLevels: Record<string, 'Low' | 'Medium' | 'High'> = {
+    "Actinic Keratoses (Solar Keratoses) or Intraepithelial Carcinoma (Bowen's disease)": 'Medium',
+    "Basal Cell Carcinoma": 'Medium',
+    "Benign Keratosis": 'Low',
+    "Dermatofibroma": 'Low',
+    "Melanoma": 'High',
+    "Melanocytic Nevi": 'Low',
+    "Vascular Lesions": 'Low'
+  };
+  
+  // Define descriptions for different skin cancer types
+  const descriptions: Record<string, string> = {
+    "Actinic Keratoses (Solar Keratoses) or Intraepithelial Carcinoma (Bowen's disease)": 
+      'Actinic Keratosis is a precancerous skin condition caused by too much exposure to the sun. It appears as rough, scaly patches on sun-exposed areas. Bowen\'s disease is an early form of skin cancer that appears as a persistent, slow-growing, red and scaly patch.',
+    "Basal Cell Carcinoma": 
+      'Basal Cell Carcinoma is the most common type of skin cancer. It begins in the basal cells of the epidermis and rarely spreads to other parts of the body. It typically appears on sun-exposed areas like the face and neck.',
+    "Benign Keratosis": 
+      'Benign Keratosis, often called seborrheic keratosis, is a common non-cancerous skin growth. These growths often appear as people age and are not harmful, though they may be removed for cosmetic reasons or if they become irritated.',
+    "Dermatofibroma": 
+      'Dermatofibroma is a common benign skin growth that usually appears as a small, firm bump on the skin. They are most commonly found on the legs but can occur anywhere on the body.',
+    "Melanoma": 
+      'Melanoma is the most dangerous form of skin cancer. It develops in the cells that produce melanin, the pigment that gives skin its color. Melanoma can spread to other parts of the body if not detected and treated early.',
+    "Melanocytic Nevi": 
+      'Melanocytic nevi, commonly known as moles, are growths on the skin that develop when pigment cells (melanocytes) grow in clusters. Most people have between 10-40 moles, and most are harmless.',
+    "Vascular Lesions": 
+      'Vascular lesions are relatively common abnormalities of the skin and underlying tissues, more commonly known as birthmarks. These can be present at birth or develop later in life.'
+  };
+  
+  // Define recommendations based on risk level
+  const recommendationsByRisk: Record<'Low' | 'Medium' | 'High', string[]> = {
+    'Low': [
+      'Monitor the area for changes in size, shape, or color',
+      'Perform regular skin self-examinations',
+      'Use sun protection when outdoors',
+      'Consider a yearly skin check with a dermatologist'
+    ],
+    'Medium': [
+      'Schedule a follow-up appointment with a dermatologist',
+      'Consider treatment options to prevent progression',
+      'Monitor closely for changes in appearance',
+      'Use strict sun protection measures',
+      'Perform monthly skin self-examinations'
+    ],
+    'High': [
+      'Seek immediate medical attention',
+      'Discuss treatment options with a specialist',
+      'Follow up regularly with a dermatologist',
+      'Monitor for any new or changing lesions',
+      'Use comprehensive sun protection',
+      'Learn about warning signs of recurrence or spread'
+    ]
+  };
+  
+  // Get the risk level for the class
+  const riskLevel = riskLevels[className] || 'Medium';
+  
+  // Get the description for the class
+  const description = descriptions[className] || 
+    'Information not available for this skin condition. Please consult with a dermatologist for proper evaluation.';
+  
+  // Get recommendations based on risk level
+  const recommendations = recommendationsByRisk[riskLevel];
+  
+  return {
+    name: className,
+    description,
+    riskLevel,
+    recommendations
+  };
+}
+
+/**
+ * Gets detailed information about skin cancer types
+ * @param cancerType - The type of skin cancer to get information for
+ */
+export function getSkinCancerInfo(cancerType: string): {
+  description: string;
+  symptoms: string[];
+  riskFactors: string[];
+  treatments: string[];
+  preventionTips: string[];
+} {
+  const skinCancerInfo: Record<string, {
+    description: string;
+    symptoms: string[];
+    riskFactors: string[];
+    treatments: string[];
+    preventionTips: string[];
+  }> = {
+    'Actinic Keratoses (Solar Keratoses) or Intraepithelial Carcinoma': {
+      description: 'Actinic Keratosis is a precancerous skin condition caused by too much exposure to the sun. It appears as rough, scaly patches on sun-exposed areas.',
+      symptoms: [
+        'Flat to slightly raised patch or bump on the skin',
+        'Hard, wart-like surface',
+        'Color variations (tan, pink, red, or a combination)',
+        'Itching, burning, or tenderness in the affected area'
+      ],
+      riskFactors: [
+        'Fair skin',
+        'Excessive sun exposure',
+        'Age (more common in older adults)',
+        'Weakened immune system',
+        'History of sunburns'
+      ],
+      treatments: [
+        'Cryotherapy (freezing)',
+        'Topical medications (5-fluorouracil, imiquimod)',
+        'Photodynamic therapy',
+        'Curettage and electrosurgery',
+        'Laser surgery'
+      ],
+      preventionTips: [
+        'Use broad-spectrum sunscreen (SPF 30+)',
+        'Wear protective clothing',
+        'Avoid peak sun hours (10 AM to 4 PM)',
+        'Regular skin examinations',
+        'Avoid tanning beds'
+      ]
+    },
+    'Basal Cell Carcinoma': {
+      description: 'Basal Cell Carcinoma is the most common type of skin cancer. It begins in the basal cells of the epidermis and rarely spreads to other parts of the body. It typically appears on sun-exposed areas like the face and neck.',
+      symptoms: [
+        'Pearly or waxy bump',
+        'Flat, flesh-colored or brown lesion',
+        'Bleeding or scabbing sore that heals and returns',
+        'Scar-like area that is white, yellow, or waxy',
+        'Raised reddish patch that might be itchy'
+      ],
+      riskFactors: [
+        'Chronic sun exposure',
+        'Fair skin',
+        'Personal or family history of skin cancer',
+        'Exposure to radiation',
+        'Exposure to arsenic'
+      ],
+      treatments: [
+        'Surgical excision',
+        'Mohs surgery',
+        'Radiation therapy',
+        'Cryotherapy',
+        'Topical medications for superficial cancers'
+      ],
+      preventionTips: [
+        'Regular use of sunscreen',
+        'Protective clothing and hats',
+        'Regular skin checks',
+        'Avoid tanning beds',
+        'Seek shade during peak sun hours'
+      ]
+    },
+    'Benign Keratosis': {
+      description: 'Benign Keratosis, often called seborrheic keratosis, is a common non-cancerous skin growth. These growths often appear as people age and are not harmful, though they may be removed for cosmetic reasons or if they become irritated.',
+      symptoms: [
+        'Waxy, stuck-on appearance',
+        'Round or oval shape',
+        'Brown, black, or light tan color',
+        'Flat or slightly raised',
+        'Itching'
+      ],
+      riskFactors: [
+        'Age (more common in older adults)',
+        'Genetic predisposition',
+        'Sun exposure may play a role'
+      ],
+      treatments: [
+        'Often no treatment is necessary',
+        'Cryotherapy (freezing)',
+        'Curettage (scraping)',
+        'Electrocautery (burning)',
+        'Laser therapy for cosmetic removal'
+      ],
+      preventionTips: [
+        'Not preventable as they are related to aging and genetics',
+        'Protect skin from sun damage',
+        'Regular skin checks to monitor changes'
+      ]
+    },
+    'Dermatofibroma': {
+      description: 'Dermatofibroma is a common benign skin growth that usually appears as a small, firm bump on the skin. They are most commonly found on the legs but can occur anywhere on the body.',
+      symptoms: [
+        'Small, firm bump on the skin',
+        'Pink, red, brown, or purple color',
+        'May be tender or itchy',
+        'Dimples when pinched',
+        'Usually less than 1 cm in diameter'
+      ],
+      riskFactors: [
+        'Minor trauma or insect bites may trigger formation',
+        'More common in women',
+        'Often appears during young adulthood'
+      ],
+      treatments: [
+        'Usually no treatment needed',
+        'Surgical excision if bothersome',
+        'Cryotherapy',
+        'Steroid injections to reduce size'
+      ],
+      preventionTips: [
+        'Not preventable',
+        'Protect skin from injury',
+        'Monitor for changes in appearance'
+      ]
+    },
+    'Melanoma': {
+      description: 'Melanoma is the most dangerous form of skin cancer. It develops in the cells that produce melanin, the pigment that gives skin its color. Melanoma can spread to other parts of the body if not detected and treated early.',
+      symptoms: [
+        'Asymmetrical moles or marks',
+        'Borders that are irregular or poorly defined',
+        'Color variations within the same mole',
+        'Diameter larger than 6mm (pencil eraser)',
+        'Evolving size, shape, or color'
+      ],
+      riskFactors: [
+        'Ultraviolet light exposure',
+        'Fair skin, light hair, freckles',
+        'Family or personal history of melanoma',
+        'Multiple moles',
+        'Weakened immune system'
+      ],
+      treatments: [
+        'Surgery to remove the melanoma',
+        'Lymph node biopsy',
+        'Immunotherapy',
+        'Targeted therapy',
+        'Radiation therapy'
+      ],
+      preventionTips: [
+        'Use sunscreen with SPF 30+ daily',
+        'Avoid tanning beds',
+        'Wear protective clothing and seek shade',
+        'Regular skin self-exams',
+        'Annual professional skin checks'
+      ]
+    },
+    'Melanocytic Nevi': {
+      description: 'Melanocytic nevi, commonly known as moles, are growths on the skin that develop when pigment cells (melanocytes) grow in clusters. Most people have between 10-40 moles, and most are harmless.',
+      symptoms: [
+        'Brown or black spots on the skin',
+        'Round or oval shape with well-defined borders',
+        'Flat or raised appearance',
+        'Usually less than 6mm in diameter',
+        'Consistent color throughout'
+      ],
+      riskFactors: [
+        'Genetic predisposition',
+        'Sun exposure, especially in childhood',
+        'Fair skin'
+      ],
+      treatments: [
+        'Usually no treatment needed',
+        'Surgical removal if suspicious',
+        'Monitoring for changes'
+      ],
+      preventionTips: [
+        'Protect skin from sun damage',
+        'Regular self-examination',
+        'Professional skin checks',
+        'Avoid tanning beds',
+        'Use broad-spectrum sunscreen'
+      ]
+    },
+    'Vascular Lesions': {
+      description: 'Vascular lesions are relatively common abnormalities of the skin and underlying tissues, more commonly known as birthmarks. These can be present at birth or develop later in life.',
+      symptoms: [
+        'Red, pink, or bluish discoloration',
+        'Raised or flat appearance',
+        'Can occur anywhere on the body',
+        'May blanch with pressure',
+        'Can be small or cover large areas'
+      ],
+      riskFactors: [
+        'Genetic factors',
+        'Hormonal changes',
+        'Aging',
+        'Sun exposure',
+        'Pregnancy'
+      ],
+      treatments: [
+        'Laser therapy',
+        'Sclerotherapy',
+        'Surgical removal',
+        'Topical medications',
+        'Compression garments for certain types'
+      ],
+      preventionTips: [
+        'Sun protection',
+        'Avoid trauma to affected areas',
+        'Regular monitoring',
+        'Healthy lifestyle choices',
+        'Early treatment of small lesions'
+      ]
+    }
+  };
+  
+  // Return info for the specified cancer type, or default to the first type
+  return skinCancerInfo[cancerType] || skinCancerInfo[Object.keys(skinCancerInfo)[0]];
+}

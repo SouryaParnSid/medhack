@@ -21,11 +21,15 @@ const navigation = {
   ],
 };
 
-export default function Footer() {
+interface FooterProps {
+  className?: string;
+}
+
+export default function Footer({ className = '' }: FooterProps) {
   const currentYear = new Date().getFullYear();
   
   return (
-    <footer className="bg-gray-900 border-t border-gray-800">
+    <footer className={`bg-gray-900 border-t border-gray-800 ${className}`}>
       <div className="mx-auto max-w-7xl overflow-hidden px-6 py-12 sm:py-16 lg:px-8">
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           <div>

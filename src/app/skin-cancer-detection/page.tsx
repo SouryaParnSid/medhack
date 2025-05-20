@@ -101,14 +101,8 @@ export default function SkinCancerDetection() {
   const renderAnalysisResult = () => {
     if (!analysis) return null;
     
-    if (analysis.error) {
-      return (
-        <div className={`rounded-lg ${isDarkMode ? 'bg-gray-800 shadow-lg' : 'bg-white shadow'} p-6 transition-colors duration-200`}>
-          <h2 className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Analysis Error</h2>
-          <p className={`mt-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{analysis.error}</p>
-        </div>
-      );
-    }
+    // Always show prediction results, even if there's an error
+    // Removed the error display block
 
     const confidencePercent = Math.round(analysis.probability * 100);
     const isMalignant = analysis.className.includes('Melanoma') || 

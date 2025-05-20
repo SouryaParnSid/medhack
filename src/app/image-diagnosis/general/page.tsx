@@ -80,16 +80,16 @@ export default function GeneralMedicalImageAnalysis() {
   });
 
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div className="container mx-auto px-4 py-8 md:py-12">
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold mb-4 text-gray-100">General Medical Image Analysis</h1>
-          <p className="text-lg text-gray-300 max-w-2xl mx-auto">
+        <div className="text-center mb-6 md:mb-10">
+          <h1 className="text-2xl md:text-3xl font-bold mb-3 md:mb-4 text-gray-100">General Medical Image Analysis</h1>
+          <p className="text-base md:text-lg text-gray-300 max-w-2xl mx-auto">
             Upload any medical image for AI-powered analysis and get instant diagnostic assistance.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
           <div>
             <div 
               {...getRootProps()} 
@@ -155,16 +155,19 @@ export default function GeneralMedicalImageAnalysis() {
                 
                 {analysisHtml && (
                   <motion.div 
-                    ref={analysisRef}
+                    className="mt-6 md:mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="mt-6"
+                    ref={analysisRef}
                   >
-                    <h3 className="text-xl font-semibold mb-4 text-gray-100">AI Analysis Result</h3>
-                    <div className="p-5 rounded-lg border border-indigo-500 bg-indigo-500/10 text-gray-200">
+                    <div className="p-4 md:p-6">
+                      <div className="flex items-center mb-3 md:mb-4">
+                        <DocumentTextIcon className="h-5 w-5 md:h-6 md:w-6 text-indigo-500 mr-2" />
+                        <h3 className="text-base md:text-lg font-medium text-gray-900 dark:text-white">Analysis Results</h3>
+                      </div>
                       <div 
-                        className="gemini-analysis" 
+                        className="prose prose-sm md:prose-base prose-indigo dark:prose-invert max-w-none text-sm md:text-base" 
                         dangerouslySetInnerHTML={{ __html: analysisHtml }}
                       />
                     </div>

@@ -40,10 +40,10 @@ export default function RootLayout({
         <div className="relative flex min-h-screen flex-col">
           <FirebaseInitializer />
           <Navigation />
-          <main className="flex-grow">
+          <main className="flex-grow md:pb-0 pb-16"> {/* Added padding bottom for mobile navigation */}
             {children}
           </main>
-          <Footer />
+          <Footer className="md:block hidden" /> {/* Hide footer on mobile */}
           <div id="modal-root" />
         </div>
       </body>

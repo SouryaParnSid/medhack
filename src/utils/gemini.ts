@@ -397,6 +397,55 @@ interface TriageData {
   symptoms: string;
 }
 
+/**
+ * Converts speech audio to text using Gemini API
+ * @param audioData - Base64 encoded audio data
+ */
+export async function convertSpeechToText(audioData: string): Promise<string> {
+  try {
+    // Check if API key is available before proceeding
+    if (!API_KEY) {
+      console.error('Cannot convert speech to text: Gemini API key is missing');
+      throw new Error('Gemini API key is missing');
+    }
+
+    console.log('Converting speech to text with Gemini API');
+    const prompt = `Transcribe the following audio recording of a person describing their medical symptoms. 
+    Focus on capturing all symptom details accurately, including:
+    - Specific symptoms mentioned
+    - Duration and severity of symptoms
+    - Any relevant medical history mentioned
+    - Factors that worsen or improve the symptoms
+    
+    Provide only the transcription without any additional commentary or analysis.`;
+
+    // Create parts for the multimodal content
+    const parts = [
+      {text: prompt},
+      {
+        inlineData: {
+          mimeType: 'audio/mp3', // or appropriate mime type
+          data: audioData.split('base64,')[1] // Remove the data URL prefix if present
+        }
+      }
+    ];
+
+    // Generate content with the audio
+    const resultPromise = visionModel.generateContent({contents: [{role: 'user', parts}]});
+    const result = await withTimeout(resultPromise, 30000); // 30 second timeout
+    
+    console.log('Received speech-to-text response from Gemini API');
+    const response = await result.response;
+    return verifyResponse(response.text());
+  } catch (error) {
+    console.error('Error converting speech to text:', error);
+    if (error instanceof Error) {
+      throw new Error(`Speech-to-text conversion failed: ${error.message}`);
+    }
+    throw new Error('Speech-to-text conversion failed');
+  }
+}
+
 export async function analyzeTriage(data: TriageData): Promise<{ priority: 'high' | 'medium' | 'low'; analysis: string; }> {
   try {
     // Enhanced prompt for more structured output
@@ -449,44 +498,86 @@ export async function analyzeTriage(data: TriageData): Promise<{ priority: 'high
     analysisText = analysisText.replace('<div class="triage-assessment">', 
       '<div class="triage-assessment" style="animation: fadeIn 0.5s ease-in-out;">');
     
-    // Add color to priority based on level
+    // Add color to priority based on level with better styling
     analysisText = analysisText.replace(/Priority Level: <strong>(HIGH|MEDIUM|LOW)<\/strong>/gi, (match, priority) => {
-      const color = priority.toLowerCase() === 'high' ? 'red' : 
-                   priority.toLowerCase() === 'medium' ? 'orange' : 'green';
-      return `Priority Level: <strong style="color: ${color}; font-size: 1.1em;">${priority}</strong>`;
+      const bgColor = priority.toLowerCase() === 'high' ? '#fef2f2' : 
+                     priority.toLowerCase() === 'medium' ? '#fffbeb' : '#f0fdf4';
+      const textColor = priority.toLowerCase() === 'high' ? '#ef4444' : 
+                       priority.toLowerCase() === 'medium' ? '#f59e0b' : '#22c55e';
+      const borderColor = priority.toLowerCase() === 'high' ? '#fecaca' : 
+                         priority.toLowerCase() === 'medium' ? '#fef3c7' : '#dcfce7';
+      
+      return `Priority Level: <span style="display: inline-block; background: ${bgColor}; color: ${textColor}; padding: 2px 8px; border-radius: 4px; font-weight: 600; border: 1px solid ${borderColor};">${priority}</span>`;
     });
     
-    // Add icons and styling to section headers
+    // Add icons and styling to section headers with minimal spacing
     analysisText = analysisText.replace(/<h4>Initial Assessment:<\/h4>/g, 
-      '<h4 style="color: #4f46e5; display: flex; align-items: center; gap: 6px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>Initial Assessment:</h4>');
+      '<h4 style="color: #4f46e5; display: flex; align-items: center; gap: 4px; margin: 4px 0 2px; padding-bottom: 2px; border-bottom: 1px solid rgba(229, 231, 235, 0.5);"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>Initial Assessment</h4>');
     
     analysisText = analysisText.replace(/<h4>Recommended Actions:<\/h4>/g, 
-      '<h4 style="color: #4f46e5; display: flex; align-items: center; gap: 6px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>Recommended Actions:</h4>');
+      '<h4 style="color: #4f46e5; display: flex; align-items: center; gap: 4px; margin: 4px 0 2px; padding-bottom: 2px; border-bottom: 1px solid rgba(229, 231, 235, 0.5);"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>Recommended Actions</h4>');
     
     analysisText = analysisText.replace(/<h4>Warning Signs to Monitor:<\/h4>/g, 
-      '<h4 style="color: #ef4444; display: flex; align-items: center; gap: 6px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>Warning Signs to Monitor:</h4>');
+      '<h4 style="color: #ef4444; display: flex; align-items: center; gap: 4px; margin: 4px 0 2px; padding-bottom: 2px; border-bottom: 1px solid rgba(229, 231, 235, 0.5);"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>Warning Signs to Monitor</h4>');
     
-    // Style list items
-    analysisText = analysisText.replace(/<li>/g, '<li style="margin-bottom: 4px;">');
+    // Style paragraphs and list items with minimal spacing
+    analysisText = analysisText.replace(/<p>/g, '<p style="margin: 2px 0; line-height: 1.3;">');
+    analysisText = analysisText.replace(/<li>/g, '<li style="margin-bottom: 1px; position: relative; padding-left: 4px;">');
     
-    // Add animation styles
+    // Replace standard ul/li with custom styled ones
+    analysisText = analysisText.replace(/<ul>/g, '<ul style="list-style-type: none; padding-left: 0; margin: 2px 0;">');
+    
+    // Add checkmarks to recommended actions with minimal spacing
+    analysisText = analysisText.replace(/<div class="recommendation-section">([\s\S]*?)<\/div>/g, (match, content) => {
+      return match.replace(/<li style="[^"]*">/g, 
+        '<li style="margin-bottom: 1px; position: relative; padding-left: 16px;"><span style="position: absolute; left: 0; color: #4f46e5;">✓</span>');
+    });
+    
+    // Add warning icons to warning signs with minimal spacing
+    analysisText = analysisText.replace(/<div class="warning-section">([\s\S]*?)<\/div>/g, (match, content) => {
+      return match.replace(/<li style="[^"]*">/g, 
+        '<li style="margin-bottom: 1px; position: relative; padding-left: 16px;"><span style="position: absolute; left: 0; color: #ef4444;">⚠</span>');
+    });
+    
+    // Add animation styles with minimal spacing
     analysisText = `<style>
       @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
+        from { opacity: 0; transform: translateY(3px); }
         to { opacity: 1; transform: translateY(0); }
       }
-      .triage-assessment { padding: 12px; border-radius: 8px; }
-      .priority-section { margin-bottom: 12px; }
+      .triage-assessment { 
+        padding: 4px; 
+        border-radius: 6px; 
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+      .priority-section { 
+        margin-bottom: 4px; 
+        padding-bottom: 4px;
+        border-bottom: 1px solid rgba(229, 231, 235, 0.3);
+      }
       .assessment-section, .recommendation-section, .warning-section { 
-        margin-bottom: 12px; 
-        animation: fadeIn 0.5s ease-in-out; 
+        margin-bottom: 4px; 
+        animation: fadeIn 0.4s ease-in-out; 
         animation-fill-mode: both; 
+        background: rgba(255, 255, 255, 0.02);
+        padding: 3px 5px;
+        border-radius: 4px;
       }
       .assessment-section { animation-delay: 0.1s; }
-      .recommendation-section { animation-delay: 0.2s; }
-      .warning-section { animation-delay: 0.3s; }
+      .recommendation-section { animation-delay: 0.15s; }
+      .warning-section { animation-delay: 0.2s; }
+      p { line-height: 1.25; margin: 2px 0; }
+      ul { margin: 2px 0; padding: 0; }
+      h4 { margin: 4px 0 2px; }
     </style>` + analysisText;
-
+    
+    // Remove any extra blank lines or excessive whitespace
+    analysisText = analysisText.replace(/\s*<br\s*\/>\s*<br\s*\/>/g, '<br />');
+    analysisText = analysisText.replace(/\n\s*\n/g, '\n');
+    
+    // Make sure HTML is properly formatted and not escaped
+    analysisText = analysisText.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+    
     // Extract priority from the analysis
     const priorityMatch = analysisText.match(/Priority Level: <strong[^>]*>(HIGH|MEDIUM|LOW)<\/strong>/i);
     const priority = priorityMatch ? 

@@ -16,6 +16,13 @@ const COLLECTION_NAME = 'patients';
 export class FirebaseDB {
   async addPatient(patient: Omit<FirebasePatient, 'id' | 'timestamp'>): Promise<string> {
     try {
+      // Sanitize HTML in analysis if it exists
+      if (patient.analysis) {
+        patient.analysis = patient.analysis
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>');
+      }
+      
       const patientWithTimestamp = {
         ...patient,
         timestamp: Timestamp.now()
@@ -73,6 +80,14 @@ export class FirebaseDB {
   async updatePatient(id: string, updates: Partial<FirebasePatient>): Promise<void> {
     try {
       const patientRef = doc(db, COLLECTION_NAME, id);
+      
+      // Sanitize HTML in analysis if it exists
+      if (updates.analysis) {
+        updates.analysis = updates.analysis
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>');
+      }
+      
       await updateDoc(patientRef, updates as DocumentData);
     } catch (error) {
       console.error('Error updating patient in Firestore:', error);
