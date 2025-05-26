@@ -146,7 +146,7 @@ SwasthyaAI is a Progressive Web App designed to support community health workers
    # or
    yarn dev
    ```
-   The application will be available at [http://localhost:3000](http://localhost:3000)
+   The application will be available at https://medhack-blue.vercel.app/
 
 6. **Build for production**
    ```bash
